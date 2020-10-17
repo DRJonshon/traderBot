@@ -1,4 +1,5 @@
-#réseau de neurones type LSTM, avec une couche linéaire avant la sortie
+# -*- coding: utf-8 -*-
+#réseau de neurones type LSTM, avec une couche linéaire en sortie
 
 print('paramétrage des modules python...')
 
@@ -75,7 +76,7 @@ def train_model(
   loss_fn = torch.nn.MSELoss(reduction='sum')#somme des carrés des différences
 
   optimiser = torch.optim.Adam(model.parameters(), lr=1e-3)# https://arxiv.org/abs/1412.6980
-  num_epochs = 50
+  num_epochs = 10
 
   train_hist = np.zeros(num_epochs)
   test_hist = np.zeros(num_epochs)
@@ -147,7 +148,7 @@ train_data = scaler.transform(np.expand_dims(train_data, axis=1))
 test_data = scaler.transform(np.expand_dims(test_data, axis=1))
 
 #formatage
-seq_length = 20
+seq_length = 5
 X_train, y_train = create_sequences(train_data, seq_length)
 X_test, y_test = create_sequences(test_data, seq_length)
 
@@ -159,7 +160,7 @@ y_test = torch.from_numpy(y_test).float()
 
 model = SequencePredictor(
   n_features=1, #nombre d'indicateurs en entrée, ici juste le prix.
-  n_hidden=512,
+  n_hidden=128,
   seq_len=seq_length,
   n_layers=2
 )
@@ -174,10 +175,10 @@ model, train_hist, test_hist = train_model(
 )
 
 print('entraînement terminé.')
-#plt.plot(train_hist, label="Training loss")
-#plt.plot(test_hist, label="Test loss")
-#plt.legend();
-#plt.show()
+plt.plot(train_hist, label="Training loss")
+plt.plot(test_hist, label="Test loss")
+plt.legend();
+plt.show()
 
 with torch.no_grad():
   test_seq = X_test[:1]
