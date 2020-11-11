@@ -5,7 +5,7 @@ from poloniex import Poloniex
 on = True
 t = 0
 history = []
-polo = Poloniex('UUOLEZEG-YGAIX5UX-QMOO53NK-I6DMOO89','4fd2e22b010bfaaf7a8e75b92f5227451f2e47f52a2fa118d30b5c2ad367fe821dc0a3772dd44fae67e91a512acfbf0242e395f1ebdd9a6777e6f54352a92a72')
+polo = Poloniex('000000','00000000')
 start_price=polo.returnTicker()['BTC_ETH']["last"]
 ETH = 0.0269541
 BTC = ETH * start_price
