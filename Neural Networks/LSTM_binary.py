@@ -76,7 +76,8 @@ def train_model(
   loss_fn = torch.nn.MSELoss(reduction='sum')#somme des carrés des différences
 
   optimiser = torch.optim.Adam(model.parameters(), lr=1e-3)# https://arxiv.org/abs/1412.6980
-  num_epochs = 1000
+  num_epochs = 500
+
   train_hist = np.zeros(num_epochs)
   test_hist = np.zeros(num_epochs)
 
@@ -93,9 +94,9 @@ def train_model(
         test_loss = loss_fn(y_test_pred.float(), y_test)
       test_hist[t] = test_loss.item()
 
-      if t % 20 == 0:
+      if t % 5 == 0:
         print(f'Epoch {t} train loss: {loss.item()} test loss: {test_loss.item()}')
-    elif t % 20 == 0:
+    elif t % 5 == 0:
       print(f'Epoch {t} train loss: {loss.item()}')
 
     train_hist[t] = loss.item()
@@ -127,13 +128,18 @@ timestamps = []
 close_2h = []
 with open('../data/0.json','rb') as file:
     data = json.load(file)
-for d in data:
+for i,d in enumerate(data):
     date = str(datetime.fromtimestamp(d['date']))
 
     timestamps.append(date)
-    close_2h.append(d['close'])
+    b = 0
+    if i > 0:
+        if d['close']-data[i-1]['close'] > 0:
+            b=1
 
-test_data_size = 50
+    close_2h.append(b)
+
+test_data_size = 10
 
 train_data = close_2h[:-test_data_size]
 test_data = close_2h[-test_data_size:]
@@ -146,8 +152,7 @@ train_data = scaler.transform(np.expand_dims(train_data, axis=1))
 
 test_data = scaler.transform(np.expand_dims(test_data, axis=1))
 
-#formatage
-seq_length = 20
+seq_length = 5
 X_train, y_train = create_sequences(train_data, seq_length)
 X_test, y_test = create_sequences(test_data, seq_length)
 
@@ -159,7 +164,7 @@ y_test = torch.from_numpy(y_test).float()
 
 model = SequencePredictor(
   n_features=1, #nombre d'indicateurs en entrée, ici juste le prix.
-  n_hidden=512,
+  n_hidden=128,
   seq_len=seq_length,
   n_layers=2
 )

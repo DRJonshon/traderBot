@@ -1,25 +1,5 @@
 # coding: utf8
 
-#chandelles de 5min
-#Calculer MMS 7,20,200
-
-#prix > MMS 200 = tendance haussière
-#prix < MMS 200 = tendance baissière
-
-#haussière ET MMS7 > MMS20 = prise de position possible à l'achat (achat puis attendre pour vendre)
-#baissière ET MMS7 < MMS20 = prise de position possible à la vente (vente puis attendre pour racheter)
-
-#prises de position:
-# - croisement MMS7 et MMS20: tendance baissière ET croisement de MMS7 et MMS20 à la baisse & inversement
-# - retracement des MMS7 et MMS20 puis rejet: tendance haussière ET MMS20 < prix < MMS7 PUIS MMS7 < prix & inversement
-# - cassure de la MMS200 : croisement à la baisse = prise de position à la vente, puis rapidement cloture pour pouvoir prendre une position de vente
-
-#stop loss:
-# - à l'achat: lowest 24h
-# - à la vente: highest 24h
-
-#take profit: 4pts
-
 import random
 import json
 import math
@@ -35,10 +15,13 @@ cursor = 0
 displaying = 1
 start_pos = 0
 #fileNum = random.randint(1,3)
-fileNum = 1
+fileNum = 10
 grab = pygame.cursors.load_xbm('grab.xbm','grab.xbm')
 precision = pygame.cursors.load_xbm('precision.xbm','precision.xbm')
 nCandles = 100
+
+lastCandle = None
+count = 1
 
 with open('../data/'+str(fileNum)+'.json','r') as fp:
     data = json.load(fp)
@@ -198,64 +181,72 @@ def long(price):
     print("bought, result:")
     print(ETH + BTC/data[0]['close']-value_before)
 
+def buy(price):
+    global BTC
+    global ETH
+    amount = 0.1 *BTC
+    amount_ETH = amount/price
+    value_before = ETH + BTC/price
+    ETH += amount_ETH
+    BTC -= amount
+    #print("bought, result:")
+    #print(ETH + BTC/data[0]['close'])
+
+def sell(price):
+    global BTC
+    global ETH
+    amount = 0.1*ETH
+    amount_BTC = amount*price
+    value_before = ETH + BTC/price
+    ETH -= amount
+    BTC += amount_BTC
+    #print("sold, result:")
+    #print(ETH + BTC/data[0]['close'])
+
 def wait():
-    global states
+    global state
+    global lastCandle
+    global count
 
-    candle  = fetchCandles()
+    candle = fetchCandles()
+    candleTrend = (candle['close']-candle['open'])>0
 
-    indexes = getIndexes()
-    MMS200 = indexes[2]
-    MMS20 = indexes[1]
-    MMS7 = indexes[0]
+    if candleTrend == lastCandle:
+        count += 1
+    elif candleTrend != lastCandle and lastCandle != None:
+        count = 1
 
-    if 'croisement_bear' in states:
-        if MMS7 < MMS20:
-            states.remove('croisement_bear')
-            return short(candle['close'])
-
-    if 'croisement_bull' in states:
-        if MMS7 > MMS20:
-            states.remove('croisement_bull')
-            return long(candle['close'])
-
-    if 'retracement_bear' in states:
-        if candle['close'] < MMS7:
-            states.remove('retracement_bear')
-            #return short(candle['close'])
-        elif candle['close'] > MMS20:
-            states.remove('retracement_bear')
-            print('fin du retracement')
-
-    if 'retracement_bull' in states:
-        if candle['close'] > MMS7:
-            states.remove('retracement_bull')
-            #return long(candle['close'])
-        elif candle['close']<MMS20:
-            states.remove('retracement_bull')
-            print('fin du retracement')
+    for i,state in enumerate(states):
+        states[i][1] -= 1
+        if state[1]==0:
+            if state[0]:
+                buy(candle['close'])
+            else:
+                sell(candle['close'])
+            states.remove(state)
 
 
-    if MMS200 < MMS20 and MMS20 < candle['close'] and candle['close'] < MMS7 and not 'retracement_bull' in states:
-        states.append('retracement_bull')
-        print("retracement_bull added on "+datetime.utcfromtimestamp(candle['date']).strftime('%Y-%m-%d %H:%M:%S'))
-    if MMS200 > MMS20 and MMS20 > candle['close'] and candle['close'] > MMS7 and not 'retracement_bear' in states:
-        states.append('retracement_bear')
-        print("retracement_bear added on "+datetime.utcfromtimestamp(candle['date']).strftime('%Y-%m-%d %H:%M:%S'))
-    if MMS200 < MMS7 and MMS7 < MMS20 and not 'croisement_bull' in states:
-        states.append('croisement_bull')
-        print('croisement_bull added on '+datetime.utcfromtimestamp(candle['date']).strftime('%Y-%m-%d %H:%M:%S'))
-    if MMS200 > MMS7 and MMS7 > MMS20 and not 'croisement_bear' in states:
-        states.append('croisement_bear')
-        print('croisement_bear added on '+datetime.utcfromtimestamp(candle['date']).strftime('%Y-%m-%d %H:%M:%S'))
+    if count == 1:
+        states.append([candleTrend,0])
+        if not candleTrend:
+            buy(candle['close'])
+        else:
+            sell(candle['close'])
+
+
+
+    lastCandle = candleTrend
+
 
 def main():
     global on
+    print('start balance:'+str(ETH + BTC/data[0]['close']))
     while on:
         try:
             wait()
         except KeyboardInterrupt:
             on = False
-
+    print('end balance:'+str(ETH + BTC/data[0]['close']))
     fValue = ETH + BTC/data[0]['close']
     print(str(fValue/iValue*100)+" %")
     display()
